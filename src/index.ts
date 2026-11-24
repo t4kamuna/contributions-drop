@@ -11,10 +11,16 @@ async function main() {
   const token = core.getInput("github_token", { required: true });
   const outputs = parseOutputs(core.getInput("outputs", { required: true }));
   const defaultBoard = core.getInput("board") || undefined;
+  const defaultStyle = core.getInput("style") || undefined;
 
   const calendar = await fetchCalendar(login, token);
   for (const out of outputs) {
-    const svg = generate(login, calendar, { palette: out.palette, board: out.board ?? defaultBoard });
+    const svg = generate(login, calendar, {
+      palette: out.palette,
+      board: out.board ?? defaultBoard,
+      style: out.style ?? defaultStyle,
+      onWarning: (m) => core.warning(`${out.path}: ${m}`),
+    });
     await mkdir(dirname(out.path), { recursive: true });
     await writeFile(out.path, svg);
     core.info(`wrote ${out.path} (${svg.length} bytes)`);

@@ -9,6 +9,7 @@ export type Move = "left" | "right" | "down" | "cw" | "ccw";
 export interface Step {
   move: Move;
   state: PieceState;
+  kick?: number; // 回転のとき、何番目の回転補正で入ったか（0 始まり）
 }
 
 export interface Plan {
@@ -33,10 +34,10 @@ function neighbors(board: Board, type: PieceType, s: PieceState): Step[] {
   if (type !== "O") {
     for (const [move, dr] of [["cw", 1], ["ccw", 3]] as const) {
       const to = ((s.r + dr) % 4) as Rotation;
-      for (const [kx, ky] of kicks(type, s.r, to)) {
+      for (const [kick, [kx, ky]] of kicks(type, s.r, to).entries()) {
         const n = { x: s.x + kx, y: s.y + ky, r: to };
         if (board.fits(type, n)) {
-          out.push({ move, state: n });
+          out.push({ move, state: n, kick });
           break;
         }
       }
@@ -111,14 +112,22 @@ export function evaluate(board: Board, type: PieceType, s: PieceState): number {
   );
 }
 
+export interface Placement {
+  path: Step[]; // 出現位置から固定位置までの操作（出現位置そのものは含まない）
+  final: PieceState;
+}
+
 /**
- * 最良の置き場所と、そこまでの操作手順を返す。出現できなければ null。
+ * 出現位置から届く固定位置を、幅優先で見つけた順に全部返す。出現できなければ null。
  *
  * 出現位置は見えない領域にあるので、そこから横に動くと画面の外で移動が終わってしまう。
  * そこで、まず真ん中のまま見える領域の最上段まで落とし、そこから探索する。
  * そこまで落とせないとき（真ん中が積み上がっているとき）だけ、出現位置から探索する。
+ *
+ * spinAware が true のときは「最後の操作が回転だったか」も状態に含めて探す。
+ * 同じ位置に落下でも回転でも入れるとき、回転で入る手順（T スピンになりうる）も候補に残すため。
  */
-export function plan(board: Board, type: PieceType): Plan | null {
+export function placements(board: Board, type: PieceType, spinAware = false): Placement[] | null {
   const spawn = spawnState(type, board.width);
   if (!board.fits(type, spawn)) return null;
 
@@ -134,43 +143,45 @@ export function plan(board: Board, type: PieceType): Plan | null {
     prefix.push({ move: "down", state: s });
   }
   const start = prefix.length > 0 ? prefix[prefix.length - 1].state : spawn;
-  const result = search(board, type, start);
-  if (!result) return null;
-  return { ...result, path: [...prefix, ...result.path] };
-}
 
-function search(board: Board, type: PieceType, start: PieceState): Plan | null {
+  const nodeKey = (s: PieceState, rotated: boolean) => (spinAware && rotated ? `${key(s)},r` : key(s));
   const prev = new Map<string, { from: string; step: Step } | null>();
-  const states = new Map<string, PieceState>();
-  prev.set(key(start), null);
-  states.set(key(start), start);
-  const queue: PieceState[] = [start];
-  const locks: PieceState[] = [];
+  const startKey = nodeKey(start, false);
+  prev.set(startKey, null);
+  const queue: { s: PieceState; k: string }[] = [{ s: start, k: startKey }];
+  const locks: string[] = [];
 
   while (queue.length > 0) {
-    const s = queue.shift()!;
-    if (!board.fits(type, { ...s, y: s.y + 1 })) locks.push(s);
+    const { s, k } = queue.shift()!;
+    if (!board.fits(type, { ...s, y: s.y + 1 })) locks.push(k);
     for (const step of neighbors(board, type, s)) {
-      const k = key(step.state);
-      if (prev.has(k)) continue;
-      prev.set(k, { from: key(s), step });
-      states.set(k, step.state);
-      queue.push(step.state);
+      const nk = nodeKey(step.state, step.move === "cw" || step.move === "ccw");
+      if (prev.has(nk)) continue;
+      prev.set(nk, { from: k, step });
+      queue.push({ s: step.state, k: nk });
     }
   }
 
-  let best: { s: PieceState; score: number } | null = null;
-  for (const s of locks) {
-    const score = evaluate(board, type, s);
-    if (!best || score > best.score) best = { s, score };
-  }
-  if (!best) return null;
+  return locks.map((lockKey) => {
+    const path: Step[] = [];
+    let k = lockKey;
+    for (let p = prev.get(k); p; p = prev.get(k)) {
+      path.unshift(p.step);
+      k = p.from;
+    }
+    const final = path.length > 0 ? path[path.length - 1].state : start;
+    return { path: [...prefix, ...path], final };
+  });
+}
 
-  const path: Step[] = [];
-  let k = key(best.s);
-  for (let p = prev.get(k); p; p = prev.get(k)) {
-    path.unshift(p.step);
-    k = p.from;
+/** classic: 評価式で一番良い置き場所を選ぶ（先読み・ホールドなし）。出現できなければ null。 */
+export function plan(board: Board, type: PieceType): Plan | null {
+  const list = placements(board, type);
+  if (!list) return null;
+  let best: Plan | null = null;
+  for (const p of list) {
+    const score = evaluate(board, type, p.final);
+    if (!best || score > best.score) best = { ...p, score };
   }
-  return { path, final: best.s, score: best.score };
+  return best;
 }

@@ -2,6 +2,7 @@
 
 import { chunkCells, type Calendar } from "./cells.js";
 import { simulate } from "./game/simulate.js";
+import { STYLES, type Style } from "./game/styles.js";
 import { getPalette } from "./render/palette.js";
 import { renderSvg } from "./render/svg.js";
 
@@ -32,6 +33,7 @@ export interface OutputSpec {
   path: string;
   palette?: string;
   board?: string;
+  style?: string;
 }
 
 /** snk と同じ書式の出力指定を読む。例: "dist/a.svg?palette=github-dark&board=18x7" */
@@ -47,6 +49,7 @@ export function parseOutputs(text: string): OutputSpec[] {
         path,
         palette: params.get("palette") ?? undefined,
         board: params.get("board") ?? undefined,
+        style: params.get("style") ?? undefined,
       };
     });
 }
@@ -54,17 +57,39 @@ export function parseOutputs(text: string): OutputSpec[] {
 export interface GenerateOptions {
   palette?: string;
   board?: string;
+  style?: string;
+  /** 7行の盤面で quad・tspin を指定されて classic に切り替えたときに呼ぶ */
+  onWarning?: (message: string) => void;
   scale?: number; // 画像の表示倍率（盤面は変えずに見た目の大きさだけ変える）
 }
 
 export function generate(login: string, calendar: Calendar, opts: GenerateOptions = {}): string {
   const last = calendar.days[calendar.days.length - 1]?.date ?? "";
-  const { width, height } = boardSize(opts.board ?? DEFAULT_BOARD, calendar);
+  const boardName = opts.board ?? DEFAULT_BOARD;
+  const { width, height } = boardSize(boardName, calendar);
+  const style = resolveStyle(opts.style, height, boardName, opts.onWarning);
   const game = simulate({
     width,
     height,
     cells: chunkCells(calendar.days),
     seed: `${login.toLowerCase()}:${last.slice(0, 4)}`,
+    style,
   });
   return renderSvg(game, getPalette(opts.palette), opts.scale ?? 1);
+}
+
+/** quad・tspin は縦に高さが要る。7行の盤面では classic に切り替える。 */
+export function resolveStyle(
+  name: string | undefined,
+  height: number,
+  board: string,
+  onWarning?: (message: string) => void,
+): Style {
+  const style = (name ?? "classic") as Style;
+  if (!STYLES.includes(style)) throw new Error(`unknown style: ${name} (available: ${STYLES.join(", ")})`);
+  if (style !== "classic" && height < 20) {
+    onWarning?.(`style "${style}" needs a tall board; using "classic" on board "${board}"`);
+    return "classic";
+  }
+  return style;
 }

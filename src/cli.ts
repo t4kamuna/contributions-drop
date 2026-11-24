@@ -2,6 +2,7 @@
 //   GITHUB_TOKEN=... npx tsx src/cli.ts --user <name> --out preview.svg [--palette github-dark]
 //   npx tsx src/cli.ts --fake 0.6 --out preview.svg   （API を使わず架空の草で。数字は草のある日の割合）
 //   --board official|18x7|14x7|graph で盤面の大きさを選ぶ（省略時は official = 10x20）
+//   --style classic|quad|tspin でプレイスタイルを選ぶ（quad・tspin は official の盤面のみ）
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
@@ -18,6 +19,7 @@ const { values } = parseArgs({
     out: { type: "string", default: "preview.svg" },
     palette: { type: "string" },
     board: { type: "string" },
+    style: { type: "string" },
     scale: { type: "string" },
   },
 });
@@ -35,6 +37,8 @@ async function main() {
   const svg = generate(login, calendar, {
     palette: values.palette,
     board: values.board,
+    style: values.style,
+    onWarning: (m) => console.warn(`warning: ${m}`),
     scale: values.scale ? Number(values.scale) : undefined,
   });
   await mkdir(dirname(values.out!), { recursive: true });

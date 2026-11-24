@@ -9,7 +9,7 @@
   <img alt="contributions-drop のデモ" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop.svg" />
 </picture>
 
-**[導入](#-導入) · [盤面](#-盤面) · [snk と併用](#-snk草のヘビを使っている場合) · [仕組み](#-仕組み)**
+**[導入](#-導入) · [盤面](#-盤面) · [スタイル](#-スタイル) · [snk と併用](#-snk草のヘビを使っている場合) · [仕組み](#-仕組み)**
 
 [English](README.md) · 日本語
 
@@ -25,7 +25,8 @@
 ## ✨ 特徴
 
 - 🟩 **草1マス = ブロック1つ。** 草が生えた日がそのままブロックになり、色はその日の濃さ。4日分で1個のミノになります。
-- 🎮 **ルールは本格派。** 7種類のミノ、SRS 回転（壁際の回転補正つき）、7-bag、ライン消去。
+- 🎮 **ルールは本格派。** 7種類のミノ、SRS 回転（壁際の回転補正つき）、7-bag、ライン消去、ホールド、T スピン。
+- 🕹 **スタイルは3種類。** 安全運転、4段消し狙い、T スピン狙いから選べます。
 - 🤖 **勝手に遊ぶ。** 内蔵のプレイヤーが置き場所を決めて1ゲームを最後まで進め、その様子をループする SVG アニメーションにします。
 - 🔁 **同じ草なら同じゲーム。** 乱数のシードはユーザー名と年です。
 - 🌗 GitHub に合わせた **ライト / ダーク** の配色。
@@ -68,6 +69,49 @@
   <img alt="graph" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-graph.svg" />
 </picture>
 
+## 🕹 スタイル
+
+<table>
+  <tr>
+    <th><code>classic</code>（デフォルト）</th>
+    <th><code>quad</code></th>
+    <th><code>tspin</code></th>
+  </tr>
+  <tr>
+    <td>平らに積んで、そろったらすぐ消す。</td>
+    <td>真ん中の列を空けて左右を積み、I ミノで <b>4段まとめて</b>消す。</td>
+    <td>T が入る形の穴を作り、T を回し入れて <b>T スピンダブル</b>を狙う。</td>
+  </tr>
+  <tr>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-dark.svg" />
+        <img alt="classic" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop.svg" />
+      </picture>
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-quad-dark.svg" />
+        <img alt="quad" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-quad.svg" />
+      </picture>
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-tspin-dark.svg" />
+        <img alt="tspin" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-tspin.svg" />
+      </picture>
+    </td>
+  </tr>
+</table>
+
+`quad` と `tspin` は**ホールド**（公式ルールと同じく1ミノ1回）を使い、1手先まで読んで置きます。決めたときは `4 LINES`、`T-SPIN DOUBLE`、`ALL CLEAR` などの文字が出ます。縦に高さが要るので `official` の盤面専用です。7行の盤面で指定すると、警告を出して `classic` で作ります。
+
+```yaml
+outputs: |
+  dist/contributions-drop.svg?style=tspin
+  dist/contributions-drop-dark.svg?style=tspin&palette=github-dark
+```
+
 ## 🚀 導入
 
 **1. ワークフローを追加します。** プロフィール用のリポジトリ（`<ユーザー名>/<ユーザー名>`）に置きます。
@@ -85,7 +129,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: t4kamuna/contributions-drop@v0.1.0
+      - uses: t4kamuna/contributions-drop@v0.2.0
         with:
           github_user_name: ${{ github.repository_owner }}
           outputs: |
@@ -128,7 +172,7 @@ snk のよくある設定は、`dist/` の中身で `output` ブランチを**�
             dist/github-contribution-grid-snake-dark.svg?palette=github-dark
 
       # ⬇ これを足す
-      - uses: t4kamuna/contributions-drop@v0.1.0
+      - uses: t4kamuna/contributions-drop@v0.2.0
         with:
           github_user_name: ${{ github.repository_owner }}
           outputs: |
@@ -150,6 +194,7 @@ snk のよくある設定は、`dist/` の中身で `output` ブランチを**�
 | `github_user_name` | ○ | 草を使うユーザー |
 | `outputs` | ○ | 1行に1ファイル。`?palette=github-light`（デフォルト）か `github-dark`、`&board=...` で盤面を個別に指定 |
 | `board` | | 全部の出力に使う盤面。`official`（デフォルト）、`18x7`、`14x7`、`graph` |
+| `style` | | 全部の出力に使うスタイル。`classic`（デフォルト）、`quad`、`tspin`。出力ごとには `&style=...` |
 | `github_token` | | 省略時は `${{ github.token }}` |
 
 複数出す例:
@@ -166,7 +211,7 @@ outputs: |
 
 1. GitHub GraphQL API から草のデータを取ります。
 2. 草が1以上ある日を古い順に並べて4日ずつに区切り、1区切りを1個のミノにします。各ブロックはその日の色を持ちます。4で割り切れない分は、最後のミノを灰色のブロックで埋めます。
-3. 1ゲームを最後までシミュレーションします。ミノごとに、SRS の回転補正込みで届く「向き × 位置」を全部試し、積んだあとの盤面（高さ・穴・凸凹・消えた行）を採点して一番良い場所に置きます。
+3. 1ゲームを最後までシミュレーションします。`quad` と `tspin` では、ホールドする手も試し、上位8〜12個の候補について次のミノまで先読みします。T スピンは3コーナールールで判定します。ミノごとに、SRS の回転補正込みで届く「向き × 位置」を全部試し、積んだあとの盤面（高さ・穴・凸凹・消えた行）を採点して一番良い場所に置きます。
 4. 結果を1枚の SVG にします。ミノ1個を `<g>` 1つにして、CSS の `@keyframes` で移動と回転をさせます。行がそろうと点滅して消え、上の段が下に詰まります。アニメーションはずっとループします。
 
 ## 🛠 手元で試す
@@ -175,6 +220,7 @@ outputs: |
 npm ci
 node --import tsx src/cli.ts --fake 0.6 --out preview.svg                 # 架空の草で
 node --import tsx src/cli.ts --fake 0.6 --board 18x7 --out preview.svg
+node --import tsx src/cli.ts --fake 0.6 --style tspin --out preview.svg
 GITHUB_TOKEN=... node --import tsx src/cli.ts --user <ユーザー名> --out preview.svg
 ```
 

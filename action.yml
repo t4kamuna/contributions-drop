@@ -18,12 +18,20 @@ inputs:
       official (10x20), 18x7, 14x7, or graph (same size as your contribution graph).
     required: false
     default: official
+  style:
+    description: |
+      Play style used when an output does not set its own.
+      classic (stack flat, clear right away), quad (keep a center well, clear 4 lines with an I),
+      or tspin (build T slots and spin Ts into them). quad and tspin add a hold box and need the official board.
+    required: false
+    default: classic
   outputs:
     description: |
-      One output per line. Optional query string selects the palette and board, e.g.
+      One output per line. Optional query string selects the palette, board and style, e.g.
       dist/contributions-drop.svg
       dist/contributions-drop-dark.svg?palette=github-dark
       dist/contributions-drop-wide.svg?board=graph
+      dist/contributions-drop-tspin.svg?style=tspin
     required: true
 runs:
   using: node24

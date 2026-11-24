@@ -5,7 +5,8 @@
 // 盤面の上にある見えない出現領域は clipPath で隠す。
 
 import { boxSize, spawnCells } from "../game/pieces.js";
-import type { Game, PieceEvent } from "../game/simulate.js";
+import { spawnState } from "../game/ai.js";
+import type { Game } from "../game/simulate.js";
 import { HIDDEN, type PieceState } from "../game/board.js";
 import type { Palette } from "./palette.js";
 
@@ -27,6 +28,12 @@ const T = {
   hold: 1.8, // 最後の盤面を見せる時間
   fade: 0.5, // ループ前のフェード
   blank: 0.3, // 空の盤面
+  stashIn: 0.06, // ホールドにしまうミノが最上段に出てくる
+  stashShow: 0.08, // そこで止めて見せる
+  stashMove: 0.12, // 枠へ移す（枠から戻す）
+  labelIn: 0.06, // 見せ場の文字が出る
+  labelShow: 0.8, // 見せる
+  labelOut: 0.25, // 消える
 };
 
 interface Frame {
@@ -36,12 +43,17 @@ interface Frame {
 
 const num = (n: number) => (Math.round(n * 100) / 100).toString();
 
-function groupTransform(s: PieceState, size: number, deg: number): string {
+function groupTransform(s: PieceState, size: number, deg: number, left = 0, scaled = false): string {
   const c = size / 2;
-  const x = MARGIN + (s.x + c) * PITCH;
+  const x = MARGIN + left + (s.x + c) * PITCH;
   const y = MARGIN + (s.y - HIDDEN + c) * PITCH;
-  return `translate(${num(x)}px,${num(y)}px) rotate(${deg}deg)`;
+  // ホールドのある盤面では、枠に入るときの縮小と補間がそろうように常に scale を付ける
+  return `translate(${num(x)}px,${num(y)}px) rotate(${deg}deg)${scaled ? " scale(1)" : ""}`;
 }
+
+// ホールド枠（quad・tspin のときだけ盤面の左に置く）
+const HOLD_W = 4 * PITCH + 8;
+const HOLD_CSS = `translate(${MARGIN + 2 * PITCH}px,${MARGIN + 1.5 * PITCH}px) rotate(0deg) scale(0.6)`;
 
 /** 回転した <g> の中で、画面の真下に dy マス動かすためのローカルの移動量。 */
 function localShift(deg: number, dy: number): [number, number] {
@@ -51,19 +63,45 @@ function localShift(deg: number, dy: number): [number, number] {
 }
 
 export function renderSvg(game: Game, palette: Palette, scale = 1): string {
-  const width = game.width * PITCH + MARGIN * 2;
+  const styled = game.style !== "classic";
+  const left = styled ? HOLD_W : 0;
+  const width = left + game.width * PITCH + MARGIN * 2;
   const height = game.height * PITCH + MARGIN * 2;
+  const gt = (s: PieceState, size: number, deg: number) => groupTransform(s, size, deg, left, styled);
 
   const pieceFrames = new Map<number, Frame[]>();
   const pieceDeg = new Map<number, number>();
   const cellFrames = new Map<number, Frame[]>(); // ブロック ID ごと
-  const cellOwner = new Map<number, PieceEvent>();
+  const cellOwner = new Map<number, number>(); // ブロック ID → ミノの番号
   const cellShift = new Map<number, number>(); // これまでに下へ詰まったマス数
+  const labels: { t: number; text: string; line: number }[] = [];
+  const framesOf = (index: number) => {
+    let f = pieceFrames.get(index);
+    if (!f) pieceFrames.set(index, (f = []));
+    return f;
+  };
 
   let t = T.start;
   for (const p of game.pieces) {
-    p.ids.forEach((id) => cellOwner.set(id, p));
+    p.ids.forEach((id) => cellOwner.set(id, p.index));
     const size = boxSize(p.type);
+
+    // ホールドにしまうミノ: 真ん中の最上段に一瞬出してから枠へ縮めて移す。
+    if (p.stash) {
+      const s = game.defs[p.stash.index];
+      const sSize = boxSize(s.type);
+      const sf = framesOf(s.index);
+      sf.push({ t, css: gt(spawnState(s.type, game.width), sSize, 0) });
+      sf.push({ t: t + T.stashIn, css: gt(p.stash.at, sSize, 0) });
+      sf.push({ t: t + T.stashIn + T.stashShow, css: gt(p.stash.at, sSize, 0) });
+      sf.push({ t: t + T.stashIn + T.stashShow + T.stashMove, css: HOLD_CSS });
+      t += T.stashIn + T.stashShow + T.stashMove + T.gap;
+    }
+    // ホールドから出すミノ: 枠から出現位置へ戻してから、いつもどおり動かす。
+    if (p.fromHold) {
+      framesOf(p.index).push({ t, css: HOLD_CSS });
+      t += T.stashMove;
+    }
 
     // 同じ操作が続く間は1本の直線にまとめ、操作が切り替わる点だけ keyframe にする。
     const d = Math.min(T.maxPiece, Math.max(T.minPiece, p.path.length * T.step));
@@ -72,14 +110,15 @@ export function renderSvg(game: Game, palette: Palette, scale = 1): string {
     let deg = 0;
     let pause = 0;
     let entered = false;
-    const frames: Frame[] = [{ t, css: groupTransform(p.spawn, size, 0) }];
+    const frames = framesOf(p.index);
+    frames.push({ t, css: gt(p.spawn, size, 0) });
     p.path.forEach((step, i) => {
       if (step.move === "cw") deg += 90;
       if (step.move === "ccw") deg -= 90;
       const next = p.path[i + 1];
       if (!next || next.move !== step.move) {
         const time = t + dt * (i + 1) + pause;
-        const css = groupTransform(step.state, size, deg);
+        const css = gt(step.state, size, deg);
         frames.push({ t: time, css });
         if (!entered && step.move === "down" && next) {
           pause = T.entry;
@@ -88,9 +127,10 @@ export function renderSvg(game: Game, palette: Palette, scale = 1): string {
         entered = true;
       }
     });
-    pieceFrames.set(p.index, frames);
     pieceDeg.set(p.index, deg);
     t += d + pause;
+
+    p.labels?.forEach((text, line) => labels.push({ t, text, line }));
 
     const after = p.after;
     if (after.kind === "clear") {
@@ -122,7 +162,7 @@ export function renderSvg(game: Game, palette: Palette, scale = 1): string {
 
   function shiftCss(id: number, rows: number, opacity: number): string {
     const owner = cellOwner.get(id)!;
-    const [x, y] = localShift(pieceDeg.get(owner.index)!, rows);
+    const [x, y] = localShift(pieceDeg.get(owner)!, rows);
     return `transform:translate(${x}px,${y}px);opacity:${opacity}`;
   }
   function frames(id: number): Frame[] {
@@ -165,7 +205,8 @@ export function renderSvg(game: Game, palette: Palette, scale = 1): string {
   ];
   const body: string[] = [];
 
-  for (const p of game.pieces) {
+  // classic は置いた順（= ミノの番号順）、ホールドのある盤面は全ミノを番号順に描く。
+  for (const p of styled ? game.defs : game.pieces) {
     const size = boxSize(p.type);
     const c = size / 2;
     css.push(keyframes(`p${p.index}`, pieceFrames.get(p.index)!, "transform"));
@@ -188,21 +229,51 @@ export function renderSvg(game: Game, palette: Palette, scale = 1): string {
     body.push(`<g class="k p${p.index}">${rects.join("")}</g>`);
   }
 
+  // 見せ場の文字。盤面の上のほうに出してフェードさせる。
+  const extra: string[] = [];
+  labels.forEach((l, i) => {
+    css.push(
+      keyframes(
+        `l${i}`,
+        [
+          { t: 0, css: "opacity:0" },
+          { t: l.t, css: "opacity:0" },
+          { t: l.t + T.labelIn, css: "opacity:1" },
+          { t: l.t + T.labelIn + T.labelShow, css: "opacity:1" },
+          { t: l.t + T.labelIn + T.labelShow + T.labelOut, css: "opacity:0" },
+        ],
+        null,
+      ),
+    );
+    css.push(`.l${i}{animation-name:l${i}}`);
+    const cx = MARGIN + left + (game.width * PITCH) / 2;
+    const cy = MARGIN + PITCH * 5 + l.line * 22;
+    const w = l.text.length * 8 + 16;
+    extra.push(
+      `<g class="k l${i}"><rect x="${num(cx - w / 2)}" y="${cy - 11}" width="${w}" height="20" rx="4" fill="${palette.labelBg}" fill-opacity="0.85"/>` +
+        `<text x="${num(cx)}" y="${cy + 4}" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="12" font-weight="700" letter-spacing="0.5" fill="${palette.accent}">${l.text}</text></g>`,
+    );
+  });
+
   const grid: string[] = [];
   for (let y = 0; y < game.height; y++) {
     for (let x = 0; x < game.width; x++) {
       grid.push(
-        `<rect x="${MARGIN + x * PITCH + OFF}" y="${MARGIN + y * PITCH + OFF}" width="${SIZE}" height="${SIZE}" rx="2"/>`,
+        `<rect x="${MARGIN + left + x * PITCH + OFF}" y="${MARGIN + y * PITCH + OFF}" width="${SIZE}" height="${SIZE}" rx="2"/>`,
       );
     }
   }
+  const holdBox = styled
+    ? `<rect x="${MARGIN + OFF}" y="${MARGIN + OFF}" width="${4 * PITCH - 2 * OFF}" height="${3 * PITCH - 2 * OFF}" rx="4" fill="none" stroke="${palette.empty}" stroke-width="2"/>` +
+      `<text x="${MARGIN + 2 * PITCH}" y="${MARGIN + 3 * PITCH + 12}" text-anchor="middle" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="9" font-weight="700" letter-spacing="1" fill="${palette.text}">HOLD</text>`
+    : "";
 
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${num(width * scale)}" height="${num(height * scale)}">`,
     `<style>${css.join("")}</style>`,
     `<defs><clipPath id="board"><rect x="0" y="${MARGIN}" width="${width}" height="${height - MARGIN}"/></clipPath></defs>`,
-    `<g fill="${palette.empty}">${grid.join("")}</g>`,
-    `<g clip-path="url(#board)"><g class="k all">${body.join("")}</g></g>`,
+    `${holdBox}<g fill="${palette.empty}">${grid.join("")}</g>`,
+    `<g clip-path="url(#board)"><g class="k all">${body.join("")}${extra.join("")}</g></g>`,
     `</svg>`,
   ].join("");
 }

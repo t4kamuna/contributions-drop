@@ -13,7 +13,7 @@ jobs:
       - uses: ./
         with:
           github_user_name: ${{ github.repository_owner }}
-          # README の見本に使う。盤面4種類 × ライト・ダーク
+          # README の見本に使う。盤面4種類とスタイル2種類 × ライト・ダーク
           outputs: |
             out/contributions-drop.svg
             out/contributions-drop-dark.svg?palette=github-dark
@@ -23,6 +23,10 @@ jobs:
             out/contributions-drop-14x7-dark.svg?board=14x7&palette=github-dark
             out/contributions-drop-graph.svg?board=graph
             out/contributions-drop-graph-dark.svg?board=graph&palette=github-dark
+            out/contributions-drop-quad.svg?style=quad
+            out/contributions-drop-quad-dark.svg?style=quad&palette=github-dark
+            out/contributions-drop-tspin.svg?style=tspin
+            out/contributions-drop-tspin-dark.svg?style=tspin&palette=github-dark
       - name: push to output branch
         run: |
           cd out
