@@ -9,7 +9,7 @@
   <img alt="contributions-drop demo" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop.svg" />
 </picture>
 
-**[Quick start](#-quick-start) · [Boards](#-boards) · [Styles](#-styles) · [Already using snk?](#-already-using-snk) · [How it works](#-how-it-works)**
+**[Quick start](#-quick-start) · [Boards](#-boards) · [Styles](#-styles) · [How it works](#-how-it-works)**
 
 English · [日本語](README.ja.md)
 
@@ -30,7 +30,7 @@ English · [日本語](README.ja.md)
 - 🤖 **Plays itself.** A small built-in player picks where each piece goes, then the whole game is recorded as a looping SVG animation.
 - 🔁 **Same graph, same game.** The randomizer is seeded with your user name and the year.
 - 🌗 **Light and dark** palettes that match GitHub.
-- 🪶 **No server.** It runs in GitHub Actions and writes a plain SVG file — just like [snk](https://github.com/Platane/snk).
+- 🪶 **No server.** It runs in GitHub Actions and writes a plain SVG file.
 
 ## 🧱 Boards
 
@@ -155,36 +155,6 @@ jobs:
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/<you>/<you>/output/contributions-drop-dark.svg" />
   <img alt="contributions-drop" src="https://raw.githubusercontent.com/<you>/<you>/output/contributions-drop.svg" />
 </picture>
-```
-
-### 🐍 Already using snk?
-
-Most snk setups push their `dist/` folder to the `output` branch and **replace the whole branch** every time. A second workflow pushing to the same branch would wipe the snake (or vice versa).
-
-Instead, add one step to your existing snk workflow, **before** the push step, writing into the same folder:
-
-```yaml
-      - uses: Platane/snk/svg-only@v3
-        with:
-          github_user_name: ${{ github.repository_owner }}
-          outputs: |
-            dist/github-contribution-grid-snake.svg
-            dist/github-contribution-grid-snake-dark.svg?palette=github-dark
-
-      # ⬇ add this
-      - uses: t4kamuna/contributions-drop@v0.2.0
-        with:
-          github_user_name: ${{ github.repository_owner }}
-          outputs: |
-            dist/contributions-drop.svg
-            dist/contributions-drop-dark.svg?palette=github-dark
-
-      - uses: crazy-max/ghaction-github-pages@v3.1.0
-        with:
-          target_branch: output
-          build_dir: dist
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 ```
 
 ## ⚙️ Inputs

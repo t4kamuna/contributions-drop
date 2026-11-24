@@ -9,7 +9,7 @@
   <img alt="contributions-drop のデモ" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop.svg" />
 </picture>
 
-**[導入](#-導入) · [盤面](#-盤面) · [スタイル](#-スタイル) · [snk と併用](#-snk草のヘビを使っている場合) · [仕組み](#-仕組み)**
+**[導入](#-導入) · [盤面](#-盤面) · [スタイル](#-スタイル) · [仕組み](#-仕組み)**
 
 [English](README.md) · 日本語
 
@@ -30,7 +30,7 @@
 - 🤖 **勝手に遊ぶ。** 内蔵のプレイヤーが置き場所を決めて1ゲームを最後まで進め、その様子をループする SVG アニメーションにします。
 - 🔁 **同じ草なら同じゲーム。** 乱数のシードはユーザー名と年です。
 - 🌗 GitHub に合わせた **ライト / ダーク** の配色。
-- 🪶 **サーバー不要。** GitHub Actions で動いて SVG ファイルを書き出すだけです。[snk](https://github.com/Platane/snk)（草のヘビ）と同じ仕組みです。
+- 🪶 **サーバー不要。** GitHub Actions で動いて SVG ファイルを書き出すだけです。
 
 ## 🧱 盤面
 
@@ -155,36 +155,6 @@ jobs:
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/<ユーザー名>/<ユーザー名>/output/contributions-drop-dark.svg" />
   <img alt="contributions-drop" src="https://raw.githubusercontent.com/<ユーザー名>/<ユーザー名>/output/contributions-drop.svg" />
 </picture>
-```
-
-### 🐍 snk（草のヘビ）を使っている場合
-
-snk のよくある設定は、`dist/` の中身で `output` ブランチを**まるごと置き換え**ます。上のワークフローを別に追加すると、同じブランチを取り合って、ヘビかこちらのどちらかの画像が消えます。
-
-代わりに、今ある snk のワークフローの**送信の手順より前**に1手順だけ足して、同じフォルダに書き出してください。
-
-```yaml
-      - uses: Platane/snk/svg-only@v3
-        with:
-          github_user_name: ${{ github.repository_owner }}
-          outputs: |
-            dist/github-contribution-grid-snake.svg
-            dist/github-contribution-grid-snake-dark.svg?palette=github-dark
-
-      # ⬇ これを足す
-      - uses: t4kamuna/contributions-drop@v0.2.0
-        with:
-          github_user_name: ${{ github.repository_owner }}
-          outputs: |
-            dist/contributions-drop.svg
-            dist/contributions-drop-dark.svg?palette=github-dark
-
-      - uses: crazy-max/ghaction-github-pages@v3.1.0
-        with:
-          target_branch: output
-          build_dir: dist
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
 ```
 
 ## ⚙️ 入力
