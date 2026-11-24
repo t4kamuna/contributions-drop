@@ -1,0 +1,24 @@
+{
+  "name": "contributions-drop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Turn your GitHub contribution graph into an auto-playing falling-block puzzle SVG.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "build": "ncc build src/index.ts -o dist --minify --license licenses.txt",
+    "preview": "tsx src/cli.ts"
+  },
+  "dependencies": {
+    "@actions/core": "^1.11.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@vercel/ncc": "^0.38.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

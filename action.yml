@@ -1,0 +1,30 @@
+name: contributions-drop
+description: Turn your GitHub contribution graph into an auto-playing falling-block puzzle SVG.
+author: t4kamuna
+branding:
+  icon: grid
+  color: green
+inputs:
+  github_user_name:
+    description: GitHub user whose contribution graph is used.
+    required: true
+  github_token:
+    description: Token used to read the contribution calendar.
+    required: false
+    default: ${{ github.token }}
+  board:
+    description: |
+      Board size used when an output does not set its own.
+      official (10x20), 18x7, 14x7, or graph (same size as your contribution graph).
+    required: false
+    default: official
+  outputs:
+    description: |
+      One output per line. Optional query string selects the palette and board, e.g.
+      dist/contributions-drop.svg
+      dist/contributions-drop-dark.svg?palette=github-dark
+      dist/contributions-drop-wide.svg?board=graph
+    required: true
+runs:
+  using: node24
+  main: dist/index.js
