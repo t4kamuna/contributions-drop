@@ -1,16 +1,76 @@
+<div align="center">
+
 # contributions-drop
 
-Turn your GitHub contribution graph into an auto-playing falling-block puzzle.
+**Your GitHub contribution graph, played as a falling-block puzzle.**
 
-Every green square of your graph becomes one block. Blocks are grouped by four (in date order) into the seven classic four-block pieces, which fall onto the board. A small built-in player places each piece, clears full lines, and the animation loops once every square has fallen.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-dark.svg" />
+  <img alt="contributions-drop demo" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop.svg" />
+</picture>
 
-- Board: `official` (10 × 20, default), `18x7`, `14x7`, or `graph` (same size as your contribution graph: weeks × 7)
-- Rules: 7 pieces, SRS rotation with wall kicks, 7-bag randomizer (seeded by user name and year, so the same graph gives the same game), line clears
-- Colors: the contribution level of each day
+**[Quick start](#-quick-start) · [Boards](#-boards) · [Already using snk?](#-already-using-snk) · [How it works](#-how-it-works)**
 
-## Usage
+English · [日本語](README.ja.md)
 
-Add a workflow to your profile repository (`<you>/<you>`):
+[![release](https://img.shields.io/github/v/tag/t4kamuna/contributions-drop?label=release&color=2ea44f)](https://github.com/t4kamuna/contributions-drop/tags)
+[![ci](https://img.shields.io/github/actions/workflow/status/t4kamuna/contributions-drop/ci.yml?branch=main&label=ci&logo=github)](https://github.com/t4kamuna/contributions-drop/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/t4kamuna/contributions-drop?color=blue)](LICENSE)
+[![GitHub Action](https://img.shields.io/badge/GitHub%20Action-node24-2088FF?logo=githubactions&logoColor=white)](action.yml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)](src)
+[![stars](https://img.shields.io/github/stars/t4kamuna/contributions-drop?color=e3b341&logo=github)](https://github.com/t4kamuna/contributions-drop/stargazers)
+
+</div>
+
+## ✨ Features
+
+- 🟩 **One green square = one block.** Every day you contributed becomes a block, colored by that day's level. Four days in a row make one piece.
+- 🎮 **Real rules.** Seven pieces, SRS rotation with wall kicks, 7-bag randomizer, line clears.
+- 🤖 **Plays itself.** A small built-in player picks where each piece goes, then the whole game is recorded as a looping SVG animation.
+- 🔁 **Same graph, same game.** The randomizer is seeded with your user name and the year.
+- 🌗 **Light and dark** palettes that match GitHub.
+- 🪶 **No server.** It runs in GitHub Actions and writes a plain SVG file — just like [snk](https://github.com/Platane/snk).
+
+## 🧱 Boards
+
+<table>
+  <tr>
+    <th><code>official</code> (default)<br>10 × 20</th>
+    <th><code>18x7</code></th>
+    <th><code>14x7</code></th>
+  </tr>
+  <tr>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-dark.svg" />
+        <img alt="official board" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop.svg" />
+      </picture>
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-18x7-dark.svg" />
+        <img alt="18x7 board" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-18x7.svg" />
+      </picture>
+    </td>
+    <td align="center">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-14x7-dark.svg" />
+        <img alt="14x7 board" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-14x7.svg" />
+      </picture>
+    </td>
+  </tr>
+</table>
+
+<code>graph</code> — the same size as your contribution graph (weeks × 7):
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-graph-dark.svg" />
+  <img alt="graph board" src="https://raw.githubusercontent.com/t4kamuna/contributions-drop/output/contributions-drop-graph.svg" />
+</picture>
+
+## 🚀 Quick start
+
+**1. Add a workflow** to your profile repository (`<you>/<you>`):
 
 ```yaml
 # .github/workflows/contributions-drop.yml
@@ -42,7 +102,9 @@ jobs:
           git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" output
 ```
 
-Then embed it in your `README.md`:
+**2. Run it once** from the Actions tab (*Run workflow*), or wait for the daily schedule.
+
+**3. Embed it** in your `README.md`:
 
 ```html
 <picture>
@@ -51,7 +113,37 @@ Then embed it in your `README.md`:
 </picture>
 ```
 
-### Inputs
+### 🐍 Already using snk?
+
+Most snk setups push their `dist/` folder to the `output` branch and **replace the whole branch** every time. A second workflow pushing to the same branch would wipe the snake (or vice versa).
+
+Instead, add one step to your existing snk workflow, **before** the push step, writing into the same folder:
+
+```yaml
+      - uses: Platane/snk/svg-only@v3
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          outputs: |
+            dist/github-contribution-grid-snake.svg
+            dist/github-contribution-grid-snake-dark.svg?palette=github-dark
+
+      # ⬇ add this
+      - uses: t4kamuna/contributions-drop@v0.1.0
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          outputs: |
+            dist/contributions-drop.svg
+            dist/contributions-drop-dark.svg?palette=github-dark
+
+      - uses: crazy-max/ghaction-github-pages@v3.1.0
+        with:
+          target_branch: output
+          build_dir: dist
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+```
+
+## ⚙️ Inputs
 
 | name | required | description |
 | --- | --- | --- |
@@ -60,15 +152,32 @@ Then embed it in your `README.md`:
 | `board` | no | Default board for all outputs: `official` (default), `18x7`, `14x7`, `graph` |
 | `github_token` | no | Defaults to `${{ github.token }}` |
 
-## Local preview
+Example with several outputs:
+
+```yaml
+outputs: |
+  dist/drop.svg
+  dist/drop-dark.svg?palette=github-dark
+  dist/drop-wide.svg?board=graph
+  dist/drop-wide-dark.svg?board=graph&palette=github-dark
+```
+
+## 🔍 How it works
+
+1. Fetch your contribution calendar from the GitHub GraphQL API.
+2. Take the days with at least one contribution, oldest first, and split them into groups of four. Each group becomes one piece; each block keeps its day's color. If the count is not a multiple of four, the last piece is filled with gray blocks.
+3. Simulate a full game. For each piece, the player searches every rotation and position it can reach (with SRS kicks) and scores the resulting board (height, holes, bumpiness, cleared lines).
+4. Write the game as one SVG. Each piece is a `<g>` moved and rotated with CSS `@keyframes`; line clears blink and drop the rows above. The animation loops forever.
+
+## 🛠 Local preview
 
 ```sh
 npm ci
-node --import tsx src/cli.ts --fake 0.6 --out preview.svg          # made-up graph
+node --import tsx src/cli.ts --fake 0.6 --out preview.svg                 # made-up graph
 node --import tsx src/cli.ts --fake 0.6 --board 18x7 --out preview.svg
 GITHUB_TOKEN=... node --import tsx src/cli.ts --user <name> --out preview.svg
 ```
 
-## License
+## 📄 License
 
-MIT
+[MIT](LICENSE)
